@@ -37,9 +37,14 @@ module.exports = (robot) ->
   if jiraIgnoreUsers == undefined
     jiraIgnoreUsers = "jira|github"
 
-  robot.http(jiraUrl + "/rest/api/2/project")
+  reqopt =
+    strictSSL: false
+    rejectUnauthorized: false
+  robot.http(jiraUrl + "/rest/api/2/project", reqopt)
     .auth(auth)
     .get() (err, res, body) ->
+      if err
+        robot.logger.debug "#{err}"
       json = JSON.parse(body)
       jiraPrefixes = ( entry.key for entry in json )
       reducedPrefixes = jiraPrefixes.reduce (x,y) -> x + "-|" + y
@@ -52,20 +57,20 @@ module.exports = (robot) ->
       robot.hear /move jira (.+) to (.+)/, (msg) ->
         issue = msg.match[1]
         msg.send "Getting transitions for #{issue}"
-        robot.http(jiraUrl + "/rest/api/2/issue/#{issue}/transitions")
+        robot.http(jiraUrl + "/rest/api/2/issue/#{issue}/transitions", reqopt)
           .auth(auth).get() (err, res, body) ->
             status = JSON.parse(body).transitions.filter (trans) ->
               trans.name.toLowerCase() == msg.match[2].toLowerCase()
 
             msg.send "Changing the status of #{issue} to #{status[0].name}"
-            robot.http(jiraUrl + "/rest/api/2/issue/#{issue}/transitions")
+            robot.http(jiraUrl + "/rest/api/2/issue/#{issue}/transitions", reqopt)
               .header("Content-Type", "application/json").auth(auth).post(JSON.stringify({
                 transition: status[0]
               })) (err, res, body) ->
                 msg.send if res.statusCode == 204 then "Success!" else body
 
       robot.hear /jira status/, (msg) ->
-        robot.http(jiraUrl + "/rest/api/2/status")
+        robot.http(jiraUrl + "/rest/api/2/status", reqopt)
         .auth(auth).get() (err, res, body) ->
           msg.send JSON.parse(body).map (status) ->
             JSON.stringify({name: status.name, description: status.description})
@@ -80,7 +85,7 @@ module.exports = (robot) ->
             cache.shift() until cache.length is 0 or cache[0].expires >= now
           if cache.length == 0 or (item for item in cache when item.issue is issue).length == 0
             cache.push({issue: issue, expires: now + 120000})
-            robot.http(jiraUrl + "/rest/api/2/issue/" + issue)
+            robot.http(jiraUrl + "/rest/api/2/issue/" + issue, reqopt)
               .auth(auth)
               .get() (err, res, body) ->
                 try
