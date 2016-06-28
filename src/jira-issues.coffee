@@ -48,7 +48,7 @@ module.exports = (robot) ->
       json = JSON.parse(body)
       jiraPrefixes = ( entry.key for entry in json )
       reducedPrefixes = jiraPrefixes.reduce (x,y) -> x + "-|" + y
-      jiraPattern = "/(?:^|\\s)(" + reducedPrefixes + "-)(\\d+)\\b/g"
+      jiraPattern = "/\\b(" + reducedPrefixes + "-)(\\d+)\\b/g"
       ic = process.env.HUBOT_JIRA_IGNORECASE
       if ic == undefined || ic == "true"
         jiraPattern += "i"
